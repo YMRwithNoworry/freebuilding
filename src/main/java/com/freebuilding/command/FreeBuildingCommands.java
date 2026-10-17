@@ -7,6 +7,8 @@ import com.freebuilding.city.CityConfig;
 import com.freebuilding.city.CityLayout;
 import com.freebuilding.city.FallbackBuilding;
 import com.freebuilding.city.PresetSetting;
+import com.freebuilding.network.ModNetwork;
+import com.freebuilding.network.PresetListPacket;
 import com.freebuilding.preset.Preset;
 import com.freebuilding.preview.PreviewMode;
 import com.freebuilding.preview.PreviewResult;
@@ -32,6 +34,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.minecraftforge.network.PacketDistributor;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -77,6 +80,10 @@ public final class FreeBuildingCommands {
                         .executes(context -> {
                             WorldData.reload();
                             context.getSource().sendSuccess(() -> Component.translatable("freebuilding.msg.reloaded"), true);
+                            ServerPlayer player = context.getSource().getPlayer();
+                            if (player != null) {
+                                sendPresetList(player);
+                            }
                             return 1;
                         }))
                 .then(Commands.literal("gui")
@@ -164,12 +171,18 @@ public final class FreeBuildingCommands {
         StructureTemplate template = new StructureTemplate();
         template.fillFromWorld(player.serverLevel(), selection.min(), size, true, Blocks.STRUCTURE_VOID);
         template.setAuthor(player.getGameProfile().getName());
+        int oldPlotSize = WorldData.getConfig().plotSize;
         try {
             boolean existed = WorldData.savePreset(name, template);
             source.sendSuccess(() -> Component.translatable(existed
                             ? "freebuilding.msg.preset.saved_over"
                             : "freebuilding.msg.preset.saved",
                     name, size.getX(), size.getY(), size.getZ(), selection.volume()), true);
+            int newPlotSize = WorldData.getConfig().plotSize;
+            if (newPlotSize > oldPlotSize) {
+                source.sendSuccess(() -> Component.translatable("freebuilding.msg.preset.plot_resized", newPlotSize), false);
+            }
+            sendPresetList(player);
             return 1;
         } catch (IOException exception) {
             source.sendFailure(Component.translatable("freebuilding.msg.preset.save_failed"));
@@ -177,9 +190,18 @@ public final class FreeBuildingCommands {
         }
     }
 
+    private static void sendPresetList(ServerPlayer player) {
+        ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
+                new PresetListPacket(WorldData.getConfig().toJson(), WorldData.getPresetInfos()));
+    }
+
     private static int delete(CommandContext<CommandSourceStack> context, String name) {
         if (WorldData.deletePreset(name)) {
             context.getSource().sendSuccess(() -> Component.translatable("freebuilding.msg.preset.deleted", name), true);
+            ServerPlayer player = context.getSource().getPlayer();
+            if (player != null) {
+                sendPresetList(player);
+            }
             return 1;
         }
         context.getSource().sendFailure(Component.translatable("freebuilding.msg.preset.not_found", name));
@@ -272,6 +294,9 @@ public final class FreeBuildingCommands {
         try {
             WorldData.savePreset("demo_house", template);
             source.sendSuccess(() -> Component.translatable("freebuilding.msg.demo", "demo_house"), true);
+            if (player != null) {
+                sendPresetList(player);
+            }
             return 1;
         } catch (IOException exception) {
             source.sendFailure(Component.translatable("freebuilding.msg.preset.save_failed"));

@@ -3,6 +3,7 @@ package com.freebuilding.client;
 import com.freebuilding.city.CityConfig;
 import com.freebuilding.city.CityLayout;
 import com.freebuilding.city.CityStyle;
+import com.freebuilding.city.PresetSetting;
 import com.freebuilding.city.RotationMode;
 import com.freebuilding.network.BuildCityPacket;
 import com.freebuilding.network.DeletePresetPacket;
@@ -186,6 +187,10 @@ public final class CityScreen extends Screen {
             this.config.jitter = value;
             markDirty();
         }));
+        addRenderableWidget(Button.builder(Component.translatable("freebuilding.gui.fit_plot"), button -> {
+            this.config.plotSize = requiredPlotSize();
+            markDirty();
+        }).bounds(x, y + 120, w, 18).build());
     }
 
     private void initDecorTab() {
@@ -436,6 +441,26 @@ public final class CityScreen extends Screen {
     private boolean getSelectedEnabled() {
         String name = getSelectedName();
         return name == null || this.config.setting(name).enabled;
+    }
+
+    public int plotSize() {
+        return this.config.plotSize;
+    }
+
+    public boolean isPresetEnabled(String name) {
+        PresetSetting setting = this.config.presets.get(name);
+        return setting == null || setting.enabled;
+    }
+
+    private int requiredPlotSize() {
+        int required = 12;
+        for (PresetInfo info : this.presets) {
+            PresetSetting setting = this.config.presets.get(info.name());
+            if (setting != null && setting.enabled && setting.weight > 0) {
+                required = Math.max(required, Math.max(info.width(), info.depth()));
+            }
+        }
+        return Mth.clamp(required, 12, 64);
     }
 
     private void toggleSelected() {

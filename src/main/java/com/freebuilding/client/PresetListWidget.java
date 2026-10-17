@@ -58,11 +58,14 @@ public final class PresetListWidget extends ObjectSelectionList<PresetListWidget
                 graphics.fill(left, top, left + width, top + height, 0x40202020);
             }
             var font = Minecraft.getInstance().font;
-            String prefix = info.enabled() ? "" : "[x] ";
+            boolean enabled = list.screen.isPresetEnabled(info.name());
+            boolean tooLarge = enabled && Math.max(info.width(), info.depth()) > list.screen.plotSize();
+            String prefix = enabled ? "" : "[x] ";
             graphics.drawString(font, prefix + info.name(), left + 3, top + 2, 0xFFFFFFFF, false);
             String details = info.width() + "x" + info.height() + "x" + info.depth()
-                    + "  w:" + info.weight();
-            graphics.drawString(font, details, left + 3, top + 12, 0xFF9AA0A6, false);
+                    + "  w:" + info.weight() + (tooLarge ? "  !" : "");
+            graphics.drawString(font, details, left + 3, top + 12,
+                    tooLarge ? 0xFFFFAA00 : 0xFF9AA0A6, false);
         }
 
         @Override

@@ -3,9 +3,11 @@ package com.freebuilding.city;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
+import com.freebuilding.preset.Preset;
 import net.minecraft.util.Mth;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
@@ -91,6 +93,35 @@ public final class CityConfig {
 
     public void removePreset(String name) {
         presets.remove(name);
+    }
+
+    /**
+     * Largest footprint among enabled, non-zero-weight presets. The plot must be at least this
+     * large, otherwise the preset is silently skipped by the city layout.
+     */
+    public int requiredPlotSize(List<Preset> availablePresets) {
+        int required = 12;
+        for (Preset preset : availablePresets) {
+            PresetSetting setting = presets.get(preset.name());
+            if (setting != null && setting.enabled && setting.weight > 0) {
+                required = Math.max(required, Math.max(preset.size().getX(), preset.size().getZ()));
+            }
+        }
+        return Mth.clamp(required, 12, 64);
+    }
+
+    /**
+     * Grows the plot size when the current value cannot fit an enabled preset.
+     *
+     * @return true when the value was changed
+     */
+    public boolean ensurePlotSizeFor(List<Preset> availablePresets) {
+        int required = requiredPlotSize(availablePresets);
+        if (plotSize < required) {
+            plotSize = required;
+            return true;
+        }
+        return false;
     }
 
     public String toJson() {

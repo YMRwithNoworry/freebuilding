@@ -53,6 +53,9 @@ public final class WorldData {
             presetManager = new PresetManager(rootDir.resolve("presets"), blockGetter, server.overworld());
             presetManager.loadAll();
             mergePresetSettings(loaded);
+            if (loaded.ensurePlotSizeFor(presetManager.getPresets())) {
+                FreeBuilding.LOGGER.info("Auto-adjusted plot size to {} to fit the largest enabled preset", loaded.plotSize);
+            }
 
             config = loaded;
             presetSnapshot = List.copyOf(presetManager.getPresets());
@@ -115,6 +118,7 @@ public final class WorldData {
         presetManager.save(name, template);
         CityConfig copy = config.copy();
         copy.ensurePreset(name);
+        copy.ensurePlotSizeFor(presetManager.getPresets());
         config = copy;
         saveConfig();
         refreshPresets();
@@ -151,6 +155,7 @@ public final class WorldData {
         loaded.ensureSeed();
         presetManager.loadAll();
         mergePresetSettings(loaded);
+        loaded.ensurePlotSizeFor(presetManager.getPresets());
         config = loaded;
         saveConfig();
         refreshPresets();

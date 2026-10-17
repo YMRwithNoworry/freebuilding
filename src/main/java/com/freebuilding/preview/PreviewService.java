@@ -29,7 +29,9 @@ public final class PreviewService {
         CityConfig config = WorldData.getConfig().copy();
         config.validate();
         config.ensureSeed();
-        WorldData.updateConfig(config);
+        if (config.ensurePlotSizeFor(WorldData.getPresets())) {
+            WorldData.updateConfig(config);
+        }
         PreviewResult result = generate(player, config, PreviewMode.MANUAL);
         List<PresetInfo> presets = WorldData.getPresetInfos();
         ModNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
@@ -66,20 +68,27 @@ public final class PreviewService {
         }
         byte[] png = CityPreviewRenderer.render(layout, config, presets);
         int buildings = 0;
+        int presetBuildings = 0;
+        int fallbackBuildings = 0;
         int parks = 0;
         for (Plot plot : layout.getPlots()) {
             if (plot.hasBuilding()) {
                 buildings++;
+                if (plot.preset != null) {
+                    presetBuildings++;
+                } else {
+                    fallbackBuildings++;
+                }
             }
             if (plot.park) {
                 parks++;
             }
         }
         String summary = String.format(Locale.ROOT,
-                "%s | %dx%d | plots %dx%d | buildings %d | parks %d | seed %d",
+                "%s | %dx%d | plots %dx%d | plot %d | buildings %d (preset %d / fallback %d) | parks %d | seed %d",
                 mode == PreviewMode.AUTO ? "AUTO" : "MANUAL",
-                layout.totalSize, layout.totalSize, layout.gridSize, layout.gridSize,
-                buildings, parks, config.seed);
+                layout.totalSize, layout.totalSize, layout.gridSize, layout.gridSize, config.plotSize,
+                buildings, presetBuildings, fallbackBuildings, parks, config.seed);
         return new PreviewResult(png, summary);
     }
 }
