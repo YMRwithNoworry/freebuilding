@@ -1,0 +1,26 @@
+# Gradle
+.gradle/
+build/
+out/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+
+# Minecraft run directories
+run/
+run-data/
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local agent planning files
+.agents/
