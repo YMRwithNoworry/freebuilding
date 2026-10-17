@@ -54,7 +54,7 @@ public final class CityFeature extends Feature<NoneFeatureConfiguration> {
         CityLayout layout = CityLayout.auto(new BlockPos(cellOriginX, groundY, cellOriginZ),
                 WorldData.WORLDGEN_CITY_SIZE, config, presets, seed, groundY);
         try {
-            boolean generated = CityWorldgen.generateChunk(level, chunk, layout, config, presets, context.random());
+            boolean generated = CityWorldgen.generateChunk(level, chunk, layout, config, presets, context.random(), false);
             return generated;
         } catch (Exception exception) {
             FreeBuilding.LOGGER.error("FreeBuilding failed to generate city chunk {} in cell ({}, {})",

@@ -27,6 +27,7 @@ import java.util.List;
 
 public final class WorldData {
     public static final int WORLDGEN_CITY_SIZE = 256;
+    public static final int RURAL_CELL_SIZE = 128;
 
     private static Path rootDir;
     private static PresetManager presetManager;
@@ -307,6 +308,37 @@ public final class WorldData {
                 ^ ((long) cellZ * 132897987541L)
                 ^ 0x5DEECE66DL);
         return random.nextDouble() * 100.0D < current.worldgenChance;
+    }
+
+    /**
+     * Rural sites use a 128x128 grid and are disabled in any 256x256 cell that contains a city.
+     */
+    public static boolean ruralExists(int cellX, int cellZ) {
+        if (!initialized) {
+            return false;
+        }
+        CityConfig current = config;
+        if (current == null || !current.ruralEnabled || current.ruralChance <= 0) {
+            return false;
+        }
+        int originX = cellX * RURAL_CELL_SIZE;
+        int originZ = cellZ * RURAL_CELL_SIZE;
+        int minCityX = Math.floorDiv(originX, WORLDGEN_CITY_SIZE);
+        int maxCityX = Math.floorDiv(originX + RURAL_CELL_SIZE - 1, WORLDGEN_CITY_SIZE);
+        int minCityZ = Math.floorDiv(originZ, WORLDGEN_CITY_SIZE);
+        int maxCityZ = Math.floorDiv(originZ + RURAL_CELL_SIZE - 1, WORLDGEN_CITY_SIZE);
+        for (int cityX = minCityX; cityX <= maxCityX; cityX++) {
+            for (int cityZ = minCityZ; cityZ <= maxCityZ; cityZ++) {
+                if (cityExists(cityX, cityZ)) {
+                    return false;
+                }
+            }
+        }
+        RandomSource random = RandomSource.create(worldSeed
+                ^ ((long) cellX * 0x9E3779B97F4A7C15L)
+                ^ ((long) cellZ * 0xC2B2AE3D27D4EB4FL)
+                ^ 0x6C6F737463697479L);
+        return random.nextDouble() * 100.0D < current.ruralChance;
     }
 
     @Nullable

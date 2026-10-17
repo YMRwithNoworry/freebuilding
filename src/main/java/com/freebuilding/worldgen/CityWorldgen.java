@@ -26,7 +26,8 @@ public final class CityWorldgen {
     }
 
     public static boolean generateChunk(WorldGenLevel level, ChunkPos chunk, CityLayout layout,
-                                        CityConfig config, List<Preset> presets, RandomSource random) {
+                                        CityConfig config, List<Preset> presets, RandomSource random,
+                                        boolean rural) {
         int minX = Math.max(chunk.getMinBlockX(), layout.minX());
         int maxX = Math.min(chunk.getMaxBlockX(), layout.maxX());
         int minZ = Math.max(chunk.getMinBlockZ(), layout.minZ());
@@ -53,8 +54,12 @@ public final class CityWorldgen {
                 applyRuinSlice(level, layout, plot, config, chunk, random);
             }
             if (plot.park && plot.intersects(chunk)) {
-                ParkBuilder.place(level, plot.minX, plot.minZ, plot.maxX, plot.maxZ,
-                        layout.groundY, config.style, random, chunk);
+                if (rural) {
+                    RuralDecorator.placePark(level, layout, plot, config, chunk);
+                } else {
+                    ParkBuilder.place(level, plot.minX, plot.minZ, plot.maxX, plot.maxZ,
+                            layout.groundY, config.style, random, chunk);
+                }
             }
             placeLamp(level, layout, plot, config, chunk);
         }

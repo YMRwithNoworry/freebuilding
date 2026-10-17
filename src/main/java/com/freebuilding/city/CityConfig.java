@@ -26,6 +26,10 @@ public final class CityConfig {
     public long seed = 0L;
     public boolean worldgenEnabled = true;
     public int worldgenChance = 25;
+    public boolean ruralEnabled = true;
+    public int ruralChance = 15;
+    public RuralMode ruralMode = RuralMode.MIXED;
+    public int ruralPlotSize = 16;
     public Map<String, PresetSetting> presets = new LinkedHashMap<>();
 
     public CityConfig copy() {
@@ -42,6 +46,10 @@ public final class CityConfig {
         copy.seed = seed;
         copy.worldgenEnabled = worldgenEnabled;
         copy.worldgenChance = worldgenChance;
+        copy.ruralEnabled = ruralEnabled;
+        copy.ruralChance = ruralChance;
+        copy.ruralMode = ruralMode;
+        copy.ruralPlotSize = ruralPlotSize;
         copy.presets = new LinkedHashMap<>();
         for (Map.Entry<String, PresetSetting> entry : presets.entrySet()) {
             copy.presets.put(entry.getKey(), entry.getValue().copy());
@@ -58,11 +66,16 @@ public final class CityConfig {
         lampChance = Mth.clamp(lampChance, 0, 100);
         parkChance = Mth.clamp(parkChance, 0, 100);
         worldgenChance = Mth.clamp(worldgenChance, 0, 100);
+        ruralChance = Mth.clamp(ruralChance, 0, 100);
+        ruralPlotSize = Mth.clamp(ruralPlotSize, 12, 32);
         if (style == null) {
             style = CityStyle.MODERN;
         }
         if (rotation == null) {
             rotation = RotationMode.RANDOM;
+        }
+        if (ruralMode == null) {
+            ruralMode = RuralMode.MIXED;
         }
         if (presets == null) {
             presets = new LinkedHashMap<>();

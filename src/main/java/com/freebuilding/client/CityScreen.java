@@ -5,6 +5,7 @@ import com.freebuilding.city.CityLayout;
 import com.freebuilding.city.CityStyle;
 import com.freebuilding.city.PresetSetting;
 import com.freebuilding.city.RotationMode;
+import com.freebuilding.city.RuralMode;
 import com.freebuilding.network.BuildCityPacket;
 import com.freebuilding.network.DeletePresetPacket;
 import com.freebuilding.network.ModNetwork;
@@ -90,9 +91,9 @@ public final class CityScreen extends Screen {
             this.previewX = this.width - this.previewW - 12;
         }
 
-        int tabW = Math.max(28, this.panelW / 4 - 2);
-        String[] tabKeys = {"build", "layout", "decor", "world"};
-        for (int i = 0; i < 4; i++) {
+        int tabW = Math.max(24, this.panelW / 5 - 2);
+        String[] tabKeys = {"build", "layout", "decor", "world", "rural"};
+        for (int i = 0; i < 5; i++) {
             final int index = i;
             addRenderableWidget(Button.builder(Component.translatable("freebuilding.gui.tab." + tabKeys[i]),
                             button -> {
@@ -115,8 +116,10 @@ public final class CityScreen extends Screen {
             initLayoutTab();
         } else if (this.tab == 2) {
             initDecorTab();
-        } else {
+        } else if (this.tab == 3) {
             initWorldTab();
+        } else {
+            initRuralTab();
         }
         initBottomButtons();
         updateSelectionWidgets();
@@ -272,6 +275,38 @@ public final class CityScreen extends Screen {
                 this.minecraft.player.connection.sendCommand("fb import lostcities");
             }
         }).bounds(x, y + 86, w, 18).build());
+    }
+
+    private void initRuralTab() {
+        int x = this.panelLeft;
+        int w = this.panelW;
+        int y = this.panelTop;
+        addRenderableWidget(new Checkbox(x, y, w, 18,
+                Component.translatable("freebuilding.gui.rural_enabled"), this.config.ruralEnabled) {
+            @Override
+            public void onPress() {
+                super.onPress();
+                config.ruralEnabled = this.selected();
+                markDirty();
+            }
+        });
+        addRenderableWidget(CycleButton.builder((RuralMode mode) -> Component.translatable(mode.translationKey()))
+                .withValues(RuralMode.values())
+                .withInitialValue(this.config.ruralMode)
+                .create(x, y + 20, w, 18, Component.translatable("freebuilding.gui.rural_mode"), (button, value) -> {
+                    this.config.ruralMode = value;
+                    markDirty();
+                }));
+        addRenderableWidget(new IntSlider(x, y + 40, w, 18, "freebuilding.gui.rural_chance", 0, 100,
+                this.config.ruralChance, value -> {
+            this.config.ruralChance = value;
+            markDirty();
+        }));
+        addRenderableWidget(new IntSlider(x, y + 60, w, 18, "freebuilding.gui.rural_plot", 12, 32,
+                this.config.ruralPlotSize, value -> {
+            this.config.ruralPlotSize = value;
+            markDirty();
+        }));
     }
 
     private void initBottomButtons() {
