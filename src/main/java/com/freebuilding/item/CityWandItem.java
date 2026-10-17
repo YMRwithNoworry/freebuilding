@@ -19,6 +19,7 @@ public final class CityWandItem extends Item {
     public void appendHoverText(ItemStack stack, @Nullable Level level, List<Component> tooltip, TooltipFlag flag) {
         tooltip.add(Component.translatable("item.freebuilding.city_wand.tip1").withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.translatable("item.freebuilding.city_wand.tip2").withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.translatable("item.freebuilding.city_wand.tip3").withStyle(ChatFormatting.DARK_GRAY));
+        tooltip.add(Component.translatable("item.freebuilding.city_wand.tip3").withStyle(ChatFormatting.GOLD));
+        tooltip.add(Component.translatable("item.freebuilding.city_wand.tip4").withStyle(ChatFormatting.DARK_GRAY));
     }
 }

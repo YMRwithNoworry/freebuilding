@@ -3,6 +3,7 @@ package com.freebuilding.event;
 import com.freebuilding.registry.ModItems;
 import com.freebuilding.selection.SelectionManager;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.Event;
@@ -35,12 +36,26 @@ public final class SelectionEvents {
         event.setCanceled(true);
         event.setUseBlock(Event.Result.DENY);
         event.setUseItem(Event.Result.DENY);
+        event.setCancellationResult(InteractionResult.SUCCESS);
         if (player instanceof ServerPlayer serverPlayer) {
             if (player.isShiftKeyDown()) {
-                SelectionManager.setPos2(serverPlayer, event.getPos());
+                SelectionManager.clear(serverPlayer);
             } else {
                 SelectionManager.setPos1(serverPlayer, event.getPos());
             }
+        }
+    }
+
+    @SubscribeEvent
+    public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
+        Player player = event.getEntity();
+        if (!event.getItemStack().is(ModItems.CITY_WAND.get())) {
+            return;
+        }
+        event.setCanceled(true);
+        event.setCancellationResult(InteractionResult.SUCCESS);
+        if (player instanceof ServerPlayer serverPlayer) {
+            SelectionManager.clear(serverPlayer);
         }
     }
 }
