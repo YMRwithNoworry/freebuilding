@@ -20,6 +20,7 @@ public final class HudOverlay {
         Selection selection = ClientSelection.get();
         Minecraft minecraft = Minecraft.getInstance();
         if (selection == null || !selection.isComplete() || minecraft.level == null
+                || minecraft.screen != null
                 || !selection.dimension().equals(minecraft.level.dimension())) {
             return;
         }
