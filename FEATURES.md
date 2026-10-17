@@ -22,7 +22,7 @@ FreeBuilding 不把 Lost Cities 声明为编译期依赖。没有安装 Lost Cit
 - Shift+右键方块：取消当前选区。
 - 右键空气：取消当前选区。
 - 客户端会显示选区线框、半透明区域、坐标和体积。
-- 选区会按玩家保存，重新登录或切换维度后仍可同步。
+- 选区会按玩家在服务器运行期间同步，切换维度后仍可同步；服务器关闭前会清理未保存的临时选区。
 
 选择完成后，可以使用 `/fb save <名称>` 保存建筑预设。
 
@@ -461,7 +461,7 @@ export JAVA_HOME="D:/MC/jdk/graalvm-community-openjdk-17.0.9+9.1"
 当前版本产物：
 
 ```text
-build/libs/freebuilding-1.3.1+1.20.1.jar
+build/libs/freebuilding-1.3.2+1.20.1.jar
 ```
 
 许可证：MIT

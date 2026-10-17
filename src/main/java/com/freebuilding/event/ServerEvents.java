@@ -12,6 +12,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
@@ -35,6 +36,14 @@ public final class ServerEvents {
         if (!WorldData.isInitialized()) {
             WorldData.initialize(event.getServer());
         }
+    }
+
+    @SubscribeEvent
+    public static void onServerStopping(ServerStoppingEvent event) {
+        for (ServerPlayer player : event.getServer().getPlayerList().getPlayers()) {
+            SelectionManager.clearForShutdown(player);
+        }
+        CityBuildJob.JOBS.clear();
     }
 
     @SubscribeEvent

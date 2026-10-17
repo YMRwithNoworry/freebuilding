@@ -84,12 +84,24 @@ public final class SelectionManager {
     }
 
     public static void clear(ServerPlayer player) {
+        clearPersistentData(player);
+        sync(player);
+        player.displayClientMessage(Component.translatable("freebuilding.msg.selection.cleared"), true);
+    }
+
+    /**
+     * Removes the transient selection without sending packets or chat messages. This must run
+     * before Minecraft saves players during server shutdown.
+     */
+    public static void clearForShutdown(ServerPlayer player) {
+        clearPersistentData(player);
+    }
+
+    private static void clearPersistentData(ServerPlayer player) {
         CompoundTag tag = player.getPersistentData();
         tag.remove(DIMENSION);
         tag.remove(POS1);
         tag.remove(POS2);
-        sync(player);
-        player.displayClientMessage(Component.translatable("freebuilding.msg.selection.cleared"), true);
     }
 
     public static void sync(ServerPlayer player) {

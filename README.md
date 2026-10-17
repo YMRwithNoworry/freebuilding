@@ -9,7 +9,7 @@ Minecraft **1.20.1 Forge** 城市建造模组。用城市法杖框选任意 3D �
 - **3D 区域选取**
   - 城市法杖右键设置点 1，左键设置点 2；Shift+右键或右键空气取消当前选区。
   - 客户端绘制高亮线框、半透明面，并在左上角显示坐标和体积。
-  - 选区按玩家持久化，重登/换维度自动同步。
+  - 选区会按玩家在服务器运行期间同步；服务器关闭前会清理未保存的临时选区，避免退出世界时阻塞保存。
 - **建筑预设**
   - `/fb save <名称>` 把选区保存为 `StructureTemplate` NBT，同时生成带格式版本的 `.fbp` 可移植文件。
   - 预设文件位于 `.minecraft/config/freebuilding/presets/`，所有存档共享；旧存档中的 `<存档>/freebuilding/presets/` 会在首次启动时自动迁移。
@@ -67,7 +67,7 @@ export JAVA_HOME="/path/to/jdk-17"
 ./gradlew build
 ```
 
-产物：`build/libs/freebuilding-1.3.1+1.20.1.jar`
+产物：`build/libs/freebuilding-1.3.2+1.20.1.jar`
 
 Windows 示例：
 
