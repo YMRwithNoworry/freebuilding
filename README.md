@@ -1,5 +1,7 @@
 # FreeBuilding
 
+完整功能说明见 [FEATURES.md](FEATURES.md)。
+
 Minecraft **1.20.1 Forge** 城市建造模组。用城市法杖框选任意 3D 区域，保存为建筑预设，再通过可视化城市规划器把预设作为“失落的城市”式城市建筑随机生成；同时支持自动世界生成、俯视预览图和预览图导出。
 
 ## 功能
@@ -42,6 +44,9 @@ Minecraft **1.20.1 Forge** 城市建造模组。用城市法杖框选任意 3D �
   - `/fb city preview` 将当前手动城市布局导出到 `<存档>/freebuilding/preview-export.png`（需要权限等级 2）。
 - **失落的城市（The Lost Cities）兼容**
   - 安装 Lost Cities 1.20.1 Forge 后，其单栋建筑会转换为 `lc_<建筑名>` 预设，写入共享预设库，可用于本模组的手动城市、自动城市和新世界全地图城市生成。
+  - 两种世界生成会按 256×256 城市单元互斥：启用 FreeBuilding 城市的单元由 FreeBuilding 接管，Lost Cities 会跳过其城市建筑；其他单元保留 Lost Cities 原生城市生成。
+  - 乡村站点也会查询 Lost Cities 城市地图，避免在 Lost Cities 城区中心生成乡村建筑。
+  - 该互斥使用 Lost Cities 运行时 API 反射接入，不增加编译期依赖；未安装 Lost Cities 时不会改变 FreeBuilding 行为。
   - 打开原版“创建新世界”界面中的“自由建筑预设”按钮，可以选择要参与生成的预设；默认覆盖率为 100%，即所有符合地形条件的新陆地区块都生成城市。
   - 在创建世界前打开该页面时，如果 Lost Cities 已安装，会先把其资源缓存到共享库，因此可以直接勾选 Lost Cities 城市建筑。
   - 导入的预设默认权重 5、启用；可在 GUI 中像普通预设一样调整权重/禁用/删除。
@@ -62,7 +67,7 @@ export JAVA_HOME="/path/to/jdk-17"
 ./gradlew build
 ```
 
-产物：`build/libs/freebuilding-1.3.0+1.20.1.jar`
+产物：`build/libs/freebuilding-1.3.1+1.20.1.jar`
 
 Windows 示例：
 
@@ -149,7 +154,7 @@ export JAVA_HOME="D:/MC/jdk/graalvm-community-openjdk-17.0.9+9.1"
 - 地块必须能容纳预设的宽度/深度；保存时通常会自动适配，也可手动调整。若预设尺寸超过 64 格上限，需要增大 `maxSelectionDimension` 并调整地块（当前 GUI 上限为 64）。
 - 失落的城市导入是“代表性建筑”转换，不是完整复刻其随机楼层/损坏/地下室/内部 `parts2`；箱子、刷怪笼等方块实体数据可能不完整。
 - 失落的城市多建筑组合（医院、购物中心、市政厅等 `multibuildings`）不会作为单个巨型预设导入；它们引用的单栋建筑仍会出现在预设列表中。
-- 如果同时启用 Lost Cities 自身的城市世界生成，建议只保留一种城市生成方式，避免两套城市在同一区域重叠。
+- 如果两个模组同时启用世界生成，已经生成的旧区块不会重新整理；互斥规则只对新生成区块生效。新区域会按城市单元由 FreeBuilding 或 Lost Cities 其中一方负责，避免两套城市重叠。
 
 ## 许可证
 

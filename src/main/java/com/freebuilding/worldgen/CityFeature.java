@@ -9,6 +9,7 @@ import com.freebuilding.preset.Preset;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
@@ -40,6 +41,9 @@ public final class CityFeature extends Feature<NoneFeatureConfiguration> {
 
         WorldGenLevel level = context.level();
         ServerLevel serverLevel = level.getLevel();
+        if (serverLevel.dimension() != Level.OVERWORLD) {
+            return false;
+        }
         int cellOriginX = cellX * WorldData.WORLDGEN_CITY_SIZE;
         int cellOriginZ = cellZ * WorldData.WORLDGEN_CITY_SIZE;
         int groundY = CityGround.compute(serverLevel, cellOriginX, cellOriginZ, WorldData.WORLDGEN_CITY_SIZE);

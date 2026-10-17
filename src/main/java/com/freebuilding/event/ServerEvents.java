@@ -4,10 +4,13 @@ import com.freebuilding.WorldData;
 import com.freebuilding.city.CityBuildJob;
 import com.freebuilding.command.FreeBuildingCommands;
 import com.freebuilding.selection.SelectionManager;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -19,8 +22,19 @@ public final class ServerEvents {
     }
 
     @SubscribeEvent
+    public static void onLevelLoad(LevelEvent.Load event) {
+        if (event.getLevel() instanceof ServerLevel level
+                && level.dimension() == Level.OVERWORLD
+                && !WorldData.isInitialized()) {
+            WorldData.initialize(level.getServer(), level);
+        }
+    }
+
+    @SubscribeEvent
     public static void onServerStarting(ServerStartingEvent event) {
-        WorldData.initialize(event.getServer());
+        if (!WorldData.isInitialized()) {
+            WorldData.initialize(event.getServer());
+        }
     }
 
     @SubscribeEvent

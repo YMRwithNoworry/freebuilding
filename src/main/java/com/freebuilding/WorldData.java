@@ -43,6 +43,15 @@ public final class WorldData {
     }
 
     public static void initialize(MinecraftServer server) {
+        ServerLevel overworld = server.overworld();
+        if (overworld == null) {
+            FreeBuilding.LOGGER.warn("Cannot initialize FreeBuilding before the overworld is available");
+            return;
+        }
+        initialize(server, overworld);
+    }
+
+    public static void initialize(MinecraftServer server, ServerLevel overworld) {
         try {
             rootDir = server.getWorldPath(LevelResource.ROOT).resolve("freebuilding");
             Files.createDirectories(rootDir.resolve("presets"));
@@ -59,7 +68,7 @@ public final class WorldData {
 
             HolderGetter<Block> blockGetter = server.registryAccess().registryOrThrow(Registries.BLOCK).asLookup();
             PresetLibrary.migrateFrom(rootDir.resolve("presets"));
-            presetManager = new PresetManager(PresetLibrary.directory(), blockGetter, server.overworld());
+            presetManager = new PresetManager(PresetLibrary.directory(), blockGetter, overworld);
             presetManager.loadAll();
             if (LostCitiesCompat.isLoaded() && !Files.exists(rootDir.resolve("lostcities_imported.marker"))) {
                 try {
@@ -81,8 +90,8 @@ public final class WorldData {
 
             config = loaded;
             presetSnapshot = List.copyOf(presetManager.getPresets());
-            worldSeed = server.overworld().getSeed();
-            seaLevel = server.overworld().getSeaLevel();
+            worldSeed = overworld.getSeed();
+            seaLevel = overworld.getSeaLevel();
             saveConfig();
             if (creationSetup != null) {
                 try {

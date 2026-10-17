@@ -7,6 +7,7 @@ import com.freebuilding.city.CityGround;
 import com.freebuilding.city.CityLayout;
 import com.freebuilding.city.CityStyle;
 import com.freebuilding.city.RuralMode;
+import com.freebuilding.compat.lostcities.LostCitiesCompat;
 import com.freebuilding.preset.Preset;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -15,6 +16,7 @@ import net.minecraft.tags.BiomeTags;
 import net.minecraft.tags.StructureTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.levelgen.RandomState;
@@ -56,6 +58,9 @@ public final class RuralFeature extends Feature<NoneFeatureConfiguration> {
 
         WorldGenLevel level = context.level();
         ServerLevel serverLevel = level.getLevel();
+        if (serverLevel.dimension() != Level.OVERWORLD) {
+            return false;
+        }
         int cellOriginX = cellX * WorldData.RURAL_CELL_SIZE;
         int cellOriginZ = cellZ * WorldData.RURAL_CELL_SIZE;
         int groundY = CityGround.compute(serverLevel, cellOriginX, cellOriginZ, WorldData.RURAL_CELL_SIZE);
@@ -73,6 +78,9 @@ public final class RuralFeature extends Feature<NoneFeatureConfiguration> {
         }
         BlockPos center = new BlockPos(centerX, groundY + 1, centerZ);
         if (serverLevel.structureManager().getStructureWithPieceAt(center, StructureTags.VILLAGE) != null) {
+            return false;
+        }
+        if (LostCitiesCompat.isLostCitiesCity(level, centerX >> 4, centerZ >> 4)) {
             return false;
         }
 

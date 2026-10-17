@@ -2,6 +2,7 @@ package com.freebuilding;
 
 import com.freebuilding.event.ServerEvents;
 import com.freebuilding.event.SelectionEvents;
+import com.freebuilding.compat.lostcities.LostCitiesCompat;
 import com.freebuilding.network.ModNetwork;
 import com.freebuilding.registry.ModCreativeTabs;
 import com.freebuilding.registry.ModFeatures;
@@ -30,6 +31,7 @@ public final class FreeBuilding {
 
         MinecraftForge.EVENT_BUS.register(SelectionEvents.class);
         MinecraftForge.EVENT_BUS.register(ServerEvents.class);
+        LostCitiesCompat.registerWorldgenCompatibility();
         LOGGER.info("FreeBuilding initialized");
     }
 }
