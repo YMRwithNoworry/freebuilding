@@ -62,7 +62,11 @@ public final class PresetListWidget extends ObjectSelectionList<PresetListWidget
             boolean tooLarge = enabled && Math.max(info.width(), info.depth()) > list.screen.plotSize();
             String prefix = enabled ? "" : "[x] ";
             graphics.drawString(font, prefix + info.name(), left + 3, top + 2, 0xFFFFFFFF, false);
-            String details = info.width() + "x" + info.height() + "x" + info.depth()
+            String category = list.screen.presetCategory(info.name());
+            if (category.length() > 12) {
+                category = category.substring(0, 12);
+            }
+            String details = "[" + category + "] " + info.width() + "x" + info.height() + "x" + info.depth()
                     + "  w:" + info.weight() + (tooLarge ? "  !" : "");
             graphics.drawString(font, details, left + 3, top + 12,
                     tooLarge ? 0xFFFFAA00 : 0xFF9AA0A6, false);

@@ -121,6 +121,46 @@ my_house.fbp
 
 如果建筑大于当前城市地块，保存时会自动扩大地块。城市 GUI 中仍然显示 `!` 标记，用于提示当前地块不足以容纳某个预设。
 
+### 预设分类与两级权重
+
+每个预设都有一个分类，默认分类为：
+
+```text
+city
+```
+
+玩家可以在城市 GUI 的“建筑”页选中预设，编辑分类名称，例如：
+
+```text
+city
+rural
+industrial
+village
+```
+
+分类名称会保存到当前世界的 `config.json`，并随城市配置同步到服务器。分类名称为空时会恢复为 `city`，最长 32 个字符，并统一转换为小写。
+
+每个分类有一个“分类权重”，每个预设还有一个独立的“预设权重”。城市生成时使用两级选择：
+
+1. 先在所有存在可用预设的分类中，按分类权重选择一个分类。
+2. 再在选中的分类中，按各预设的预设权重选择一个建筑。
+3. 分类权重为 `0` 时，整个分类不参与生成。
+4. 预设权重为 `0` 或预设被禁用时，该预设不参与生成。
+
+例如：
+
+```text
+city 分类权重: 70
+rural 分类权重: 30
+
+city/office      预设权重: 50
+city/apartment   预设权重: 20
+rural/house      预设权重: 80
+rural/barn       预设权重: 20
+```
+
+此配置会先以 70:30 的比例选择 `city` 或 `rural`，然后在选中的分类内部按预设权重选择建筑。分类权重和预设权重相互独立，适合同时控制“大类比例”和“大类内部的建筑比例”。
+
 ## 4. 城市规划 GUI
 
 城市 GUI 提供以下功能：
@@ -128,7 +168,9 @@ my_house.fbp
 ### 建筑页
 
 - 查看共享预设列表。
-- 调整每个预设的生成权重。
+- 编辑预设分类。
+- 调整分类总权重。
+- 调整分类内每个预设的生成权重。
 - 启用或禁用预设。
 - 删除预设。
 - 查看尺寸、来源和预览信息。
@@ -381,7 +423,7 @@ FreeBuilding 和 Lost Cities 同时启用时，两个系统使用以下互斥规
 
 ```text
 <存档>/freebuilding/
-  config.json                 # 当前存档的城市和乡村配置
+  config.json                 # 当前存档的城市、乡村、分类和权重配置
   creation.json               # 新世界首次启动前的一次性设置
   preview-export.png          # /fb city preview 导出的预览图
   lostcities_imported.marker  # Lost Cities 自动导入标记
@@ -461,7 +503,7 @@ export JAVA_HOME="D:/MC/jdk/graalvm-community-openjdk-17.0.9+9.1"
 当前版本产物：
 
 ```text
-build/libs/freebuilding-1.3.2+1.20.1.jar
+build/libs/freebuilding-1.4.0+1.20.1.jar
 ```
 
 许可证：MIT

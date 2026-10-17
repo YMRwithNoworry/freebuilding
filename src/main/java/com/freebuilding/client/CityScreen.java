@@ -55,10 +55,13 @@ public final class CityScreen extends Screen {
 
     private PresetListWidget presetList;
     private IntSlider weightSlider;
+    private IntSlider categoryWeightSlider;
+    private EditBox categoryBox;
     private Button enableButton;
     private Button deleteButton;
     private EditBox seedBox;
     private Checkbox worldgenCheck;
+    private boolean updatingSelectionWidgets;
 
     private int previewCooldown;
     private boolean dirty;
@@ -126,14 +129,43 @@ public final class CityScreen extends Screen {
     }
 
     private void initBuildTab() {
-        int listHeight = Math.max(40, this.panelH - 60);
+        int listHeight = Math.max(40, this.panelH - 104);
         this.presetList = new PresetListWidget(this.minecraft, this.panelW, listHeight, this.panelTop, 22, this);
         addRenderableWidget(this.presetList);
         this.presetList.setPresets(this.presets, this.selectedPreset);
 
-        int y = this.panelTop + this.panelH - 54;
-        this.weightSlider = new IntSlider(this.panelLeft, y, this.panelW, 18,
-                "freebuilding.gui.weight", 0, 100, getSelectedWeight(), value -> {
+        int categoryY = this.panelTop + this.panelH - 98;
+        this.categoryBox = new EditBox(this.font, this.panelLeft, categoryY, this.panelW, 18,
+                Component.translatable("freebuilding.gui.category"));
+        this.categoryBox.setMaxLength(32);
+        this.categoryBox.setHint(Component.translatable("freebuilding.gui.category_hint"));
+        this.categoryBox.setResponder(value -> {
+            if (this.updatingSelectionWidgets || getSelectedName() == null) {
+                return;
+            }
+            String category = CityConfig.normalizeCategory(value);
+            PresetSetting setting = this.config.setting(getSelectedName());
+            if (!setting.category.equals(category)) {
+                setting.category = category;
+                this.config.ensureCategory(category);
+                markDirty();
+            }
+            if (this.categoryWeightSlider != null) {
+                this.categoryWeightSlider.setIntValue(getSelectedCategoryWeight());
+            }
+        });
+        addRenderableWidget(this.categoryBox);
+
+        this.categoryWeightSlider = new IntSlider(this.panelLeft, this.panelTop + this.panelH - 78,
+                this.panelW, 18, "freebuilding.gui.category_weight", 0, 100,
+                getSelectedCategoryWeight(), value -> {
+            setSelectedCategoryWeight(value);
+            markDirty();
+        });
+        addRenderableWidget(this.categoryWeightSlider);
+
+        this.weightSlider = new IntSlider(this.panelLeft, this.panelTop + this.panelH - 58,
+                this.panelW, 18, "freebuilding.gui.preset_weight", 0, 100, getSelectedWeight(), value -> {
             setSelectedWeight(value);
             markDirty();
         });
@@ -441,6 +473,16 @@ public final class CityScreen extends Screen {
 
     private void updateSelectionWidgets() {
         boolean valid = this.selectedPreset >= 0 && this.selectedPreset < this.presets.size();
+        this.updatingSelectionWidgets = true;
+        if (this.categoryBox != null) {
+            this.categoryBox.active = valid;
+            this.categoryBox.setValue(valid ? getSelectedCategory() : "");
+        }
+        this.updatingSelectionWidgets = false;
+        if (this.categoryWeightSlider != null) {
+            this.categoryWeightSlider.active = valid;
+            this.categoryWeightSlider.setIntValue(getSelectedCategoryWeight());
+        }
         if (this.weightSlider != null) {
             this.weightSlider.active = valid;
             this.weightSlider.setIntValue(getSelectedWeight());
@@ -478,6 +520,19 @@ public final class CityScreen extends Screen {
         }
     }
 
+    private String getSelectedCategory() {
+        String name = getSelectedName();
+        return name == null ? CityConfig.normalizeCategory(null) : this.config.setting(name).category;
+    }
+
+    private int getSelectedCategoryWeight() {
+        return this.config.categorySetting(getSelectedCategory()).weight;
+    }
+
+    private void setSelectedCategoryWeight(int weight) {
+        this.config.categorySetting(getSelectedCategory()).weight = weight;
+    }
+
     private boolean getSelectedEnabled() {
         String name = getSelectedName();
         return name == null || this.config.setting(name).enabled;
@@ -492,11 +547,16 @@ public final class CityScreen extends Screen {
         return setting == null || setting.enabled;
     }
 
+    public String presetCategory(String name) {
+        return this.config.setting(name).category;
+    }
+
     private int requiredPlotSize() {
         int required = 12;
         for (PresetInfo info : this.presets) {
             PresetSetting setting = this.config.presets.get(info.name());
-            if (setting != null && setting.enabled && setting.weight > 0) {
+            if (setting != null && setting.enabled && setting.weight > 0
+                    && this.config.categorySetting(setting.category).weight > 0) {
                 required = Math.max(required, Math.max(info.width(), info.depth()));
             }
         }

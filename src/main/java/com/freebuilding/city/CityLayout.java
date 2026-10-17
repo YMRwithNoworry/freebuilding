@@ -9,7 +9,9 @@ import net.minecraft.world.level.block.Rotation;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public final class CityLayout {
     public final int originX;
@@ -100,14 +102,39 @@ public final class CityLayout {
 
     @Nullable
     private Placement choosePlacement(CityConfig config, List<Preset> presets, RandomSource random) {
-        List<Preset> pool = new ArrayList<>();
+        Map<String, List<Preset>> categoryPools = new LinkedHashMap<>();
+        Map<String, Integer> categoryWeights = new LinkedHashMap<>();
         for (Preset preset : presets) {
             PresetSetting setting = config.presets.get(preset.name());
-            if (setting != null && setting.enabled && setting.weight > 0) {
-                pool.add(preset);
+            if (setting == null || !setting.enabled || setting.weight <= 0) {
+                continue;
             }
+            String category = CityConfig.normalizeCategory(setting.category);
+            CategorySetting categorySetting = config.categories.get(category);
+            if (categorySetting == null || categorySetting.weight <= 0) {
+                continue;
+            }
+            categoryPools.computeIfAbsent(category, key -> new ArrayList<>()).add(preset);
+            categoryWeights.put(category, categorySetting.weight);
         }
-        while (!pool.isEmpty()) {
+
+        while (!categoryPools.isEmpty()) {
+            int totalCategoryWeight = 0;
+            for (int weight : categoryWeights.values()) {
+                totalCategoryWeight += Math.max(1, weight);
+            }
+            int categoryRoll = random.nextInt(Math.max(1, totalCategoryWeight));
+            String pickedCategory = categoryPools.keySet().iterator().next();
+            int categoryAccumulated = 0;
+            for (String category : categoryPools.keySet()) {
+                categoryAccumulated += Math.max(1, categoryWeights.getOrDefault(category, 0));
+                if (categoryRoll < categoryAccumulated) {
+                    pickedCategory = category;
+                    break;
+                }
+            }
+
+            List<Preset> pool = categoryPools.get(pickedCategory);
             int totalWeight = 0;
             for (Preset preset : pool) {
                 totalWeight += Math.max(1, config.presets.get(preset.name()).weight);
@@ -128,6 +155,10 @@ public final class CityLayout {
                 return new Placement(picked, rotation, -1, size.getX(), size.getZ());
             }
             pool.remove(picked);
+            if (pool.isEmpty()) {
+                categoryPools.remove(pickedCategory);
+                categoryWeights.remove(pickedCategory);
+            }
         }
         return null;
     }

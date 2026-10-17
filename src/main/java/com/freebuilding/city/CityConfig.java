@@ -8,6 +8,7 @@ import net.minecraft.util.Mth;
 
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 
@@ -31,6 +32,7 @@ public final class CityConfig {
     public RuralMode ruralMode = RuralMode.MIXED;
     public int ruralPlotSize = 16;
     public Map<String, PresetSetting> presets = new LinkedHashMap<>();
+    public Map<String, CategorySetting> categories = new LinkedHashMap<>();
 
     public CityConfig copy() {
         CityConfig copy = new CityConfig();
@@ -53,6 +55,9 @@ public final class CityConfig {
         copy.presets = new LinkedHashMap<>();
         for (Map.Entry<String, PresetSetting> entry : presets.entrySet()) {
             copy.presets.put(entry.getKey(), entry.getValue().copy());
+        }
+        for (Map.Entry<String, CategorySetting> entry : categories.entrySet()) {
+            copy.categories.put(entry.getKey(), entry.getValue().copy());
         }
         return copy;
     }
@@ -80,12 +85,25 @@ public final class CityConfig {
         if (presets == null) {
             presets = new LinkedHashMap<>();
         }
+        if (categories == null) {
+            categories = new LinkedHashMap<>();
+        }
+        Map<String, CategorySetting> normalizedCategories = new LinkedHashMap<>();
+        for (Map.Entry<String, CategorySetting> entry : categories.entrySet()) {
+            String category = normalizeCategory(entry.getKey());
+            CategorySetting setting = entry.getValue() == null ? new CategorySetting() : entry.getValue();
+            setting.weight = Mth.clamp(setting.weight, 0, 100);
+            normalizedCategories.putIfAbsent(category, setting);
+        }
+        categories = normalizedCategories;
         for (Map.Entry<String, PresetSetting> entry : presets.entrySet()) {
             if (entry.getValue() == null) {
                 entry.setValue(new PresetSetting());
-            } else {
-                entry.getValue().weight = Mth.clamp(entry.getValue().weight, 0, 100);
             }
+            PresetSetting setting = entry.getValue();
+            setting.weight = Mth.clamp(setting.weight, 0, 100);
+            setting.category = normalizeCategory(setting.category);
+            ensureCategory(setting.category);
         }
     }
 
@@ -97,15 +115,35 @@ public final class CityConfig {
     }
 
     public PresetSetting setting(String name) {
-        return presets.computeIfAbsent(name, key -> new PresetSetting());
+        PresetSetting setting = presets.computeIfAbsent(name, key -> new PresetSetting());
+        setting.category = normalizeCategory(setting.category);
+        ensureCategory(setting.category);
+        return setting;
     }
 
     public void ensurePreset(String name) {
-        presets.computeIfAbsent(name, key -> new PresetSetting());
+        setting(name);
     }
 
     public void removePreset(String name) {
         presets.remove(name);
+    }
+
+    public CategorySetting categorySetting(String category) {
+        String normalized = normalizeCategory(category);
+        return categories.computeIfAbsent(normalized, key -> new CategorySetting());
+    }
+
+    public void ensureCategory(String category) {
+        categorySetting(category);
+    }
+
+    public static String normalizeCategory(String category) {
+        if (category == null || category.isBlank()) {
+            return "city";
+        }
+        String normalized = category.trim().toLowerCase(Locale.ROOT);
+        return normalized.length() > 32 ? normalized.substring(0, 32) : normalized;
     }
 
     /**
@@ -116,7 +154,9 @@ public final class CityConfig {
         int required = 12;
         for (Preset preset : availablePresets) {
             PresetSetting setting = presets.get(preset.name());
-            if (setting != null && setting.enabled && setting.weight > 0) {
+            CategorySetting category = setting == null ? null : categories.get(normalizeCategory(setting.category));
+            if (setting != null && setting.enabled && setting.weight > 0
+                    && category != null && category.weight > 0) {
                 required = Math.max(required, Math.max(preset.size().getX(), preset.size().getZ()));
             }
         }

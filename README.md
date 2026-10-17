@@ -16,9 +16,10 @@ Minecraft **1.20.1 Forge** 城市建造模组。用城市法杖框选任意 3D �
   - `/fb list`、`/fb delete`、`/fb reload`、`/fb export <名称>`、`/fb import preset <文件> [force]`。
   - `.fbp` 文件可以复制到另一份实例的 `config/freebuilding/imports/` 后导入，也可以直接放入 `presets/`。
   - 默认限制：单轴 ≤ 64 格，总体积 ≤ 110,592 格（可在 `config/freebuilding-common.toml` 调整）。
+  - 建筑页支持给预设归类，例如 `city`、`rural` 或自定义分类；生成时先按分类权重抽取分类，再按分类内的预设权重抽取具体建筑。
 - **城市规划 GUI**
   - `/fb gui` 或使用“城市规划器”物品打开。
-  - 预设列表、权重滑条、启用/禁用、删除。
+  - 预设列表、分类编辑、分类权重、预设权重、启用/禁用、删除。
   - 城市样式：现代 / 废墟 / 工业 / 自然。
   - 地块大小、道路宽度、城市规模、位置抖动、废墟率、路灯率、公园率、旋转模式、城市种子。
   - 保存预设时如果建筑大于当前地块，会自动扩大地块；列表中的 `!` 表示该预设仍大于当前地块，可在“布局”页点击“适配最大预设”。
@@ -67,7 +68,7 @@ export JAVA_HOME="/path/to/jdk-17"
 ./gradlew build
 ```
 
-产物：`build/libs/freebuilding-1.3.2+1.20.1.jar`
+产物：`build/libs/freebuilding-1.4.0+1.20.1.jar`
 
 Windows 示例：
 
@@ -123,7 +124,7 @@ export JAVA_HOME="D:/MC/jdk/graalvm-community-openjdk-17.0.9+9.1"
 
 ```
 <存档>/freebuilding/
-  config.json              # 当前存档的城市/乡村布局、样式、权重、生成概率
+  config.json              # 当前存档的城市/乡村布局、分类、权重、样式和生成概率
   preview-export.png       # /fb city preview 导出
   lostcities_imported.marker # 当前存档的失落的城市导入标记
 

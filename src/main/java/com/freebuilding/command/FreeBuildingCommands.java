@@ -301,9 +301,12 @@ public final class FreeBuildingCommands {
             PresetSetting setting = config.presets.get(preset.name());
             int weight = setting == null ? 10 : setting.weight;
             boolean enabled = setting == null || setting.enabled;
+            String category = setting == null ? CityConfig.normalizeCategory(null)
+                    : CityConfig.normalizeCategory(setting.category);
+            int categoryWeight = config.categorySetting(category).weight;
             context.getSource().sendSuccess(() -> Component.translatable("freebuilding.msg.preset.line",
                     preset.name(), preset.size().getX(), preset.size().getY(), preset.size().getZ(),
-                    weight, enabled), false);
+                    category, categoryWeight, weight, enabled), false);
         }
         return 1;
     }
