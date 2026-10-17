@@ -1,11 +1,14 @@
 package com.freebuilding;
 
 import com.freebuilding.city.CityConfig;
+import com.freebuilding.compat.lostcities.ImportedPreset;
+import com.freebuilding.compat.lostcities.LostCitiesCompat;
 import com.freebuilding.preset.Preset;
 import com.freebuilding.preset.PresetInfo;
 import com.freebuilding.preset.PresetManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderGetter;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -52,6 +55,16 @@ public final class WorldData {
             HolderGetter<Block> blockGetter = server.registryAccess().registryOrThrow(Registries.BLOCK).asLookup();
             presetManager = new PresetManager(rootDir.resolve("presets"), blockGetter, server.overworld());
             presetManager.loadAll();
+            if (LostCitiesCompat.isLoaded() && !Files.exists(rootDir.resolve("lostcities_imported.marker"))) {
+                try {
+                    int imported = importLostCitiesInto(server, loaded, false);
+                    if (imported > 0 || hasLostCitiesPresets()) {
+                        writeLostCitiesMarker();
+                    }
+                } catch (Exception exception) {
+                    FreeBuilding.LOGGER.error("Failed to auto-import Lost Cities buildings", exception);
+                }
+            }
             mergePresetSettings(loaded);
             if (loaded.ensurePlotSizeFor(presetManager.getPresets())) {
                 FreeBuilding.LOGGER.info("Auto-adjusted plot size to {} to fit the largest enabled preset", loaded.plotSize);
@@ -165,6 +178,82 @@ public final class WorldData {
         if (presetManager != null) {
             presetSnapshot = List.copyOf(presetManager.getPresets());
         }
+    }
+
+    /**
+     * Imports/refreshes buildings from The Lost Cities into normal FreeBuilding presets.
+     *
+     * @return number of presets written, or -1 when Lost Cities is unavailable
+     */
+    public static int importLostCities(MinecraftServer server, boolean force) {
+        if (!LostCitiesCompat.isLoaded() || presetManager == null) {
+            return -1;
+        }
+        try {
+            CityConfig copy = config.copy();
+            int count = importLostCitiesInto(server, copy, force);
+            copy.ensurePlotSizeFor(presetManager.getPresets());
+            config = copy;
+            saveConfig();
+            refreshPresets();
+            writeLostCitiesMarker();
+            return count;
+        } catch (Exception exception) {
+            FreeBuilding.LOGGER.error("Failed to import Lost Cities buildings", exception);
+            return -1;
+        }
+    }
+
+    private static int importLostCitiesInto(MinecraftServer server, CityConfig target, boolean force) {
+        if (presetManager == null) {
+            return 0;
+        }
+        HolderLookup<Block> blockLookup = server.registryAccess().lookupOrThrow(Registries.BLOCK);
+        List<ImportedPreset> imported = LostCitiesCompat.importBuildings(server, blockLookup);
+        int count = 0;
+        for (ImportedPreset preset : imported) {
+            boolean existed = presetManager.get(preset.name()) != null;
+            if (existed && !force) {
+                continue;
+            }
+            try {
+                presetManager.save(preset.name(), preset.template());
+            } catch (IOException exception) {
+                FreeBuilding.LOGGER.error("Failed to save imported Lost Cities preset {}", preset.name(), exception);
+                continue;
+            }
+            target.ensurePreset(preset.name());
+            if (!existed) {
+                target.setting(preset.name()).weight = 5;
+            }
+            count++;
+        }
+        FreeBuilding.LOGGER.info("Imported {} Lost Cities presets (force={})", count, force);
+        return count;
+    }
+
+    private static void writeLostCitiesMarker() {
+        if (rootDir == null) {
+            return;
+        }
+        try {
+            Files.writeString(rootDir.resolve("lostcities_imported.marker"),
+                    Long.toString(System.currentTimeMillis()), StandardCharsets.UTF_8);
+        } catch (IOException exception) {
+            FreeBuilding.LOGGER.warn("Failed to write Lost Cities import marker", exception);
+        }
+    }
+
+    private static boolean hasLostCitiesPresets() {
+        if (presetManager == null) {
+            return false;
+        }
+        for (Preset preset : presetManager.getPresets()) {
+            if (preset.name().startsWith("lc_")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static List<PresetInfo> getPresetInfos() {

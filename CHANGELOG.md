@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0+1.20.1
+
+- 新增 The Lost Cities（失落的城市）兼容：首次启动自动把 Lost Cities 单栋建筑转换为 `lc_*` 预设。
+- 新增 `/fb import lostcities [force]` 和 GUI“导入失落的城市”按钮。
+- 导入时解析 Lost Cities 的 building/part/palette/variant JSON，使用标准调色板并堆叠代表性楼层与屋顶。
+- 导入预设默认权重 5、启用；导入后自动适配地块大小。
+- 导入使用世界存档中的普通 `StructureTemplate` 预设，因此权重、预览、按需生成和自动世界生成全部可用。
+
 ## 1.0.1+1.20.1
 
 - 修复保存的建筑预设因大于默认地块（20 格）而被城市生成器静默跳过、始终使用内置建筑的问题。

@@ -33,12 +33,18 @@ Minecraft **1.20.1 Forge** 城市建造模组。用城市法杖框选任意 3D �
   - 默认概率 25%，可在 GUI 调整；只影响新生成的区块。
 - **预览图导出**
   - `/fb city preview` 将当前手动城市布局导出到 `<存档>/freebuilding/preview-export.png`（需要权限等级 2）。
+- **失落的城市（The Lost Cities）兼容**
+  - 安装 Lost Cities 1.20.1 Forge 后，首次启动服务器会自动把它的单栋建筑转换为 `lc_<建筑名>` 预设。
+  - 导入的预设默认权重 5、启用；可在 GUI 中像普通预设一样调整权重/禁用/删除。
+  - GUI“世界”页新增“导入失落的城市”按钮；也可使用 `/fb import lostcities [force]` 手动导入或强制刷新。
+  - 转换时会选择代表性的地面/楼层/屋顶部件，并使用 Lost Cities 标准调色板；不导入多建筑组合（multibuildings）、地下室和 `parts2` 内部部件。
 
 ## 环境
 
 - Minecraft 1.20.1
 - Forge 47.4.28
 - Java 17
+- 可选：The Lost Cities 1.20.1 Forge（用于导入其建筑预设）
 
 ## 构建
 
@@ -47,7 +53,7 @@ export JAVA_HOME="/path/to/jdk-17"
 ./gradlew build
 ```
 
-产物：`build/libs/freebuilding-1.0.1+1.20.1.jar`
+产物：`build/libs/freebuilding-1.1.0+1.20.1.jar`
 
 Windows 示例：
 
@@ -78,6 +84,8 @@ export JAVA_HOME="D:/MC/jdk/graalvm-community-openjdk-17.0.9+9.1"
 | `/fb delete <名称>` | 2 | 删除建筑预设 |
 | `/fb list` | 0 | 列出预设、尺寸与权重 |
 | `/fb reload` | 2 | 从磁盘重新加载配置与预设 |
+| `/fb import lostcities` | 2 | 导入缺失的失落的城市建筑预设 |
+| `/fb import lostcities force` | 2 | 强制重新转换并覆盖所有失落的城市预设 |
 | `/fb gui` | 2 | 打开城市规划 GUI（规划器物品同样需要权限等级 2） |
 | `/fb city build` | 0 | 显示本次城市生成范围 |
 | `/fb city build confirm` | 2 | 在玩家位置生成城市 |
@@ -100,8 +108,10 @@ export JAVA_HOME="D:/MC/jdk/graalvm-community-openjdk-17.0.9+9.1"
 <存档>/freebuilding/
   config.json              # 城市布局、样式、权重、自动生成概率
   preview-export.png       # /fb city preview 导出
+  lostcities_imported.marker # 失落的城市首次导入标记
   presets/
     my_house.nbt           # 建筑预设
+    lc_building1.nbt       # 从失落的城市导入的预设
 ```
 
 ## 已知限制
@@ -114,6 +124,9 @@ export JAVA_HOME="D:/MC/jdk/graalvm-community-openjdk-17.0.9+9.1"
 - 海洋单元会跳过；高山会被削平，边缘可能留下山体。
 - 自动城市默认使用 256×256 城市单元，城市频率/规模可在 GUI 调整。
 - 地块必须能容纳预设的宽度/深度；保存时通常会自动适配，也可手动调整。若预设尺寸超过 64 格上限，需要增大 `maxSelectionDimension` 并调整地块（当前 GUI 上限为 64）。
+- 失落的城市导入是“代表性建筑”转换，不是完整复刻其随机楼层/损坏/地下室/内部 `parts2`；箱子、刷怪笼等方块实体数据可能不完整。
+- 失落的城市多建筑组合（医院、购物中心、市政厅等 `multibuildings`）不会作为单个巨型预设导入；它们引用的单栋建筑仍会出现在预设列表中。
+- 如果同时启用 Lost Cities 自身的城市世界生成，建议只保留一种城市生成方式，避免两套城市在同一区域重叠。
 
 ## 许可证
 

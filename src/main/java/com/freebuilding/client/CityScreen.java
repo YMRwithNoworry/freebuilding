@@ -267,6 +267,11 @@ public final class CityScreen extends Screen {
                 this.minecraft.player.connection.sendCommand("fb city locate");
             }
         }).bounds(x, y + 64, w, 18).build());
+        addRenderableWidget(Button.builder(Component.translatable("freebuilding.gui.import_lostcities"), button -> {
+            if (this.minecraft != null && this.minecraft.player != null) {
+                this.minecraft.player.connection.sendCommand("fb import lostcities");
+            }
+        }).bounds(x, y + 86, w, 18).build());
     }
 
     private void initBottomButtons() {

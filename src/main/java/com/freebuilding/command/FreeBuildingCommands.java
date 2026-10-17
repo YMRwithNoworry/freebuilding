@@ -7,6 +7,7 @@ import com.freebuilding.city.CityConfig;
 import com.freebuilding.city.CityLayout;
 import com.freebuilding.city.FallbackBuilding;
 import com.freebuilding.city.PresetSetting;
+import com.freebuilding.compat.lostcities.LostCitiesCompat;
 import com.freebuilding.network.ModNetwork;
 import com.freebuilding.network.PresetListPacket;
 import com.freebuilding.preset.Preset;
@@ -86,6 +87,12 @@ public final class FreeBuildingCommands {
                             }
                             return 1;
                         }))
+                .then(Commands.literal("import")
+                        .requires(source -> source.hasPermission(2))
+                        .then(Commands.literal("lostcities")
+                                .executes(context -> importLostCities(context, false))
+                                .then(Commands.literal("force")
+                                        .executes(context -> importLostCities(context, true)))))
                 .then(Commands.literal("gui")
                         .requires(source -> source.hasPermission(2))
                         .executes(context -> {
@@ -206,6 +213,29 @@ public final class FreeBuildingCommands {
         }
         context.getSource().sendFailure(Component.translatable("freebuilding.msg.preset.not_found", name));
         return 0;
+    }
+
+    private static int importLostCities(CommandContext<CommandSourceStack> context, boolean force) {
+        CommandSourceStack source = context.getSource();
+        if (!LostCitiesCompat.isLoaded()) {
+            source.sendFailure(Component.translatable("freebuilding.msg.lostcities.not_loaded"));
+            return 0;
+        }
+        int count = WorldData.importLostCities(source.getServer(), force);
+        if (count < 0) {
+            source.sendFailure(Component.translatable("freebuilding.msg.lostcities.not_loaded"));
+            return 0;
+        }
+        if (count == 0) {
+            source.sendSuccess(() -> Component.translatable("freebuilding.msg.lostcities.none"), false);
+        } else {
+            source.sendSuccess(() -> Component.translatable("freebuilding.msg.lostcities.imported", count), true);
+        }
+        ServerPlayer player = source.getPlayer();
+        if (player != null) {
+            sendPresetList(player);
+        }
+        return 1;
     }
 
     private static int list(CommandContext<CommandSourceStack> context) {
