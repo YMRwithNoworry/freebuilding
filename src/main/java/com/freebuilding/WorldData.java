@@ -5,7 +5,9 @@ import com.freebuilding.compat.lostcities.ImportedPreset;
 import com.freebuilding.compat.lostcities.LostCitiesCompat;
 import com.freebuilding.preset.Preset;
 import com.freebuilding.preset.PresetInfo;
+import com.freebuilding.preset.PresetLibrary;
 import com.freebuilding.preset.PresetManager;
+import com.freebuilding.preset.PortablePreset;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderGetter;
 import net.minecraft.core.HolderLookup;
@@ -50,11 +52,14 @@ public final class WorldData {
             if (Files.isRegularFile(configPath)) {
                 loaded = CityConfig.fromJson(Files.readString(configPath, StandardCharsets.UTF_8));
             }
+            WorldCreationSetup creationSetup = Files.isRegularFile(configPath)
+                    ? null : WorldCreationSetup.read(rootDir.resolve("creation.json"));
             loaded.validate();
             loaded.ensureSeed();
 
             HolderGetter<Block> blockGetter = server.registryAccess().registryOrThrow(Registries.BLOCK).asLookup();
-            presetManager = new PresetManager(rootDir.resolve("presets"), blockGetter, server.overworld());
+            PresetLibrary.migrateFrom(rootDir.resolve("presets"));
+            presetManager = new PresetManager(PresetLibrary.directory(), blockGetter, server.overworld());
             presetManager.loadAll();
             if (LostCitiesCompat.isLoaded() && !Files.exists(rootDir.resolve("lostcities_imported.marker"))) {
                 try {
@@ -66,6 +71,9 @@ public final class WorldData {
                     FreeBuilding.LOGGER.error("Failed to auto-import Lost Cities buildings", exception);
                 }
             }
+            if (creationSetup != null) {
+                creationSetup.apply(loaded, presetManager.getPresets().stream().map(Preset::name).toList());
+            }
             mergePresetSettings(loaded);
             if (loaded.ensurePlotSizeFor(presetManager.getPresets())) {
                 FreeBuilding.LOGGER.info("Auto-adjusted plot size to {} to fit the largest enabled preset", loaded.plotSize);
@@ -76,6 +84,13 @@ public final class WorldData {
             worldSeed = server.overworld().getSeed();
             seaLevel = server.overworld().getSeaLevel();
             saveConfig();
+            if (creationSetup != null) {
+                try {
+                    Files.deleteIfExists(rootDir.resolve("creation.json"));
+                } catch (IOException exception) {
+                    FreeBuilding.LOGGER.warn("Failed to remove consumed new-world setup", exception);
+                }
+            }
             initialized = true;
             FreeBuilding.LOGGER.info("Loaded {} building presets for world {}", presetSnapshot.size(), server.getWorldPath(LevelResource.ROOT));
         } catch (Exception exception) {
@@ -150,6 +165,36 @@ public final class WorldData {
         saveConfig();
         refreshPresets();
         return deleted;
+    }
+
+    public static Path exportPreset(String name) throws IOException {
+        if (presetManager == null || presetManager.get(name) == null) {
+            throw new IOException("Preset not found");
+        }
+        return PresetLibrary.exportPortable(name);
+    }
+
+    /** @return 1 imported, 0 already existed, -1 source file was not found */
+    public static int importPortablePreset(String fileName, boolean force) throws IOException {
+        if (presetManager == null) {
+            throw new IOException("World data is not initialized");
+        }
+        Path source = PresetLibrary.findImport(fileName);
+        if (!Files.isRegularFile(source)) {
+            return -1;
+        }
+        String name = PortablePreset.readName(source);
+        boolean imported = presetManager.importPortable(name, source, force);
+        if (!imported) {
+            return 0;
+        }
+        CityConfig copy = config.copy();
+        copy.ensurePreset(name);
+        copy.ensurePlotSizeFor(presetManager.getPresets());
+        config = copy;
+        saveConfig();
+        refreshPresets();
+        return 1;
     }
 
     public static void reload() {

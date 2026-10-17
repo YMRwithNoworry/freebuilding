@@ -75,6 +75,11 @@ public final class FreeBuildingCommands {
                         .requires(source -> source.hasPermission(2))
                         .then(Commands.argument("name", StringArgumentType.word())
                                 .executes(context -> delete(context, StringArgumentType.getString(context, "name")))))
+                .then(Commands.literal("export")
+                        .requires(source -> source.hasPermission(2))
+                        .then(Commands.argument("name", StringArgumentType.word())
+                                .executes(context -> exportPreset(context,
+                                        StringArgumentType.getString(context, "name")))))
                 .then(Commands.literal("list").executes(FreeBuildingCommands::list))
                 .then(Commands.literal("reload")
                         .requires(source -> source.hasPermission(2))
@@ -92,7 +97,15 @@ public final class FreeBuildingCommands {
                         .then(Commands.literal("lostcities")
                                 .executes(context -> importLostCities(context, false))
                                 .then(Commands.literal("force")
-                                        .executes(context -> importLostCities(context, true)))))
+                                        .executes(context -> importLostCities(context, true))))
+                        .then(Commands.literal("preset")
+                                .then(Commands.argument("file", StringArgumentType.word())
+                                        .executes(context -> importPortablePreset(context,
+                                                StringArgumentType.getString(context, "file"), false))
+                                        .then(Commands.literal("force")
+                                                .executes(context -> importPortablePreset(context,
+                                                        StringArgumentType.getString(context, "file"), true)))))
+                )
                 .then(Commands.literal("gui")
                         .requires(source -> source.hasPermission(2))
                         .executes(context -> {
@@ -213,6 +226,45 @@ public final class FreeBuildingCommands {
         }
         context.getSource().sendFailure(Component.translatable("freebuilding.msg.preset.not_found", name));
         return 0;
+    }
+
+    private static int exportPreset(CommandContext<CommandSourceStack> context, String name) {
+        try {
+            Path file = WorldData.exportPreset(name);
+            context.getSource().sendSuccess(() -> Component.translatable("freebuilding.msg.preset.exported",
+                    file.toAbsolutePath().toString()), true);
+            return 1;
+        } catch (IOException exception) {
+            context.getSource().sendFailure(Component.translatable("freebuilding.msg.preset.not_found", name));
+            return 0;
+        }
+    }
+
+    private static int importPortablePreset(CommandContext<CommandSourceStack> context, String fileName,
+                                            boolean force) {
+        try {
+            int result = WorldData.importPortablePreset(fileName, force);
+            if (result < 0) {
+                context.getSource().sendFailure(Component.translatable("freebuilding.msg.preset.import_missing",
+                        fileName));
+                return 0;
+            }
+            if (result == 0) {
+                context.getSource().sendFailure(Component.translatable("freebuilding.msg.preset.exists",
+                        fileName));
+                return 0;
+            }
+            context.getSource().sendSuccess(() -> Component.translatable("freebuilding.msg.preset.imported",
+                    fileName), true);
+            ServerPlayer player = context.getSource().getPlayer();
+            if (player != null) {
+                sendPresetList(player);
+            }
+            return 1;
+        } catch (IOException exception) {
+            context.getSource().sendFailure(Component.translatable("freebuilding.msg.preset.import_failed"));
+            return 0;
+        }
     }
 
     private static int importLostCities(CommandContext<CommandSourceStack> context, boolean force) {

@@ -9,9 +9,10 @@ Minecraft **1.20.1 Forge** 城市建造模组。用城市法杖框选任意 3D �
   - 客户端绘制高亮线框、半透明面，并在左上角显示坐标和体积。
   - 选区按玩家持久化，重登/换维度自动同步。
 - **建筑预设**
-  - `/fb save <名称>` 把选区保存为 `StructureTemplate` NBT。
-  - `/fb list`、`/fb delete`、`/fb reload`。
-  - 预设文件位于 `<存档>/freebuilding/presets/*.nbt`。
+  - `/fb save <名称>` 把选区保存为 `StructureTemplate` NBT，同时生成带格式版本的 `.fbp` 可移植文件。
+  - 预设文件位于 `.minecraft/config/freebuilding/presets/`，所有存档共享；旧存档中的 `<存档>/freebuilding/presets/` 会在首次启动时自动迁移。
+  - `/fb list`、`/fb delete`、`/fb reload`、`/fb export <名称>`、`/fb import preset <文件> [force]`。
+  - `.fbp` 文件可以复制到另一份实例的 `config/freebuilding/imports/` 后导入，也可以直接放入 `presets/`。
   - 默认限制：单轴 ≤ 64 格，总体积 ≤ 110,592 格（可在 `config/freebuilding-common.toml` 调整）。
 - **城市规划 GUI**
   - `/fb gui` 或使用“城市规划器”物品打开。
@@ -40,7 +41,9 @@ Minecraft **1.20.1 Forge** 城市建造模组。用城市法杖框选任意 3D �
 - **预览图导出**
   - `/fb city preview` 将当前手动城市布局导出到 `<存档>/freebuilding/preview-export.png`（需要权限等级 2）。
 - **失落的城市（The Lost Cities）兼容**
-  - 安装 Lost Cities 1.20.1 Forge 后，首次启动服务器会自动把它的单栋建筑转换为 `lc_<建筑名>` 预设。
+  - 安装 Lost Cities 1.20.1 Forge 后，其单栋建筑会转换为 `lc_<建筑名>` 预设，写入共享预设库，可用于本模组的手动城市、自动城市和新世界全地图城市生成。
+  - 打开原版“创建新世界”界面中的“自由建筑预设”按钮，可以选择要参与生成的预设；默认覆盖率为 100%，即所有符合地形条件的新陆地区块都生成城市。
+  - 在创建世界前打开该页面时，如果 Lost Cities 已安装，会先把其资源缓存到共享库，因此可以直接勾选 Lost Cities 城市建筑。
   - 导入的预设默认权重 5、启用；可在 GUI 中像普通预设一样调整权重/禁用/删除。
   - GUI“世界”页新增“导入失落的城市”按钮；也可使用 `/fb import lostcities [force]` 手动导入或强制刷新。
   - 转换时会选择代表性的地面/楼层/屋顶部件，并使用 Lost Cities 标准调色板；不导入多建筑组合（multibuildings）、地下室和 `parts2` 内部部件。
@@ -59,7 +62,7 @@ export JAVA_HOME="/path/to/jdk-17"
 ./gradlew build
 ```
 
-产物：`build/libs/freebuilding-1.2.0+1.20.1.jar`
+产物：`build/libs/freebuilding-1.3.0+1.20.1.jar`
 
 Windows 示例：
 
@@ -75,8 +78,9 @@ export JAVA_HOME="D:/MC/jdk/graalvm-community-openjdk-17.0.9+9.1"
 3. 执行 `/fb save my_house` 保存建筑预设。
 4. 执行 `/fb gui` 或右键城市规划器打开 GUI。
 5. 在“建筑”页调整预设权重/启用状态；在“布局”“装饰”“世界”“乡村”页调整城市样式和乡村生成。
-6. 右侧查看俯视预览，点击“生成城市”，确认后生成。
-7. 自动世界生成默认开启；用 `/fb city locate` 查找最近的自动城市中心，然后前往该处（只对新区块生效）。
+6. 创建新世界时，点击“自由建筑预设”，选择 Lost Cities 或其他共享预设，并保持“在所有可生成陆地生成城市”开启，即可让新世界按所选预设覆盖生成城市。
+7. 右侧查看俯视预览，点击“生成城市”，确认后生成。
+8. 自动世界生成默认开启；用 `/fb city locate` 查找最近的自动城市中心，然后前往该处（只对新区块生效）。
 
 ## 指令
 
@@ -90,6 +94,8 @@ export JAVA_HOME="D:/MC/jdk/graalvm-community-openjdk-17.0.9+9.1"
 | `/fb delete <名称>` | 2 | 删除建筑预设 |
 | `/fb list` | 0 | 列出预设、尺寸与权重 |
 | `/fb reload` | 2 | 从磁盘重新加载配置与预设 |
+| `/fb export <名称>` | 2 | 导出共享预设为可移植 `.fbp` 文件 |
+| `/fb import preset <文件> [force]` | 2 | 从 `config/freebuilding/imports/` 或 `exports/` 导入 `.fbp` 文件 |
 | `/fb import lostcities` | 2 | 导入缺失的失落的城市建筑预设 |
 | `/fb import lostcities force` | 2 | 强制重新转换并覆盖所有失落的城市预设 |
 | `/fb gui` | 2 | 打开城市规划 GUI（规划器物品同样需要权限等级 2） |
@@ -112,12 +118,17 @@ export JAVA_HOME="D:/MC/jdk/graalvm-community-openjdk-17.0.9+9.1"
 
 ```
 <存档>/freebuilding/
-  config.json              # 城市/乡村布局、样式、权重、生成概率
+  config.json              # 当前存档的城市/乡村布局、样式、权重、生成概率
   preview-export.png       # /fb city preview 导出
-  lostcities_imported.marker # 失落的城市首次导入标记
+  lostcities_imported.marker # 当前存档的失落的城市导入标记
+
+.minecraft/config/freebuilding/
   presets/
-    my_house.nbt           # 建筑预设
-    lc_building1.nbt       # 从失落的城市导入的预设
+    my_house.nbt           # 共享标准结构文件
+    my_house.fbp           # 共享可移植文件
+    lc_building1.fbp       # 失落的城市可移植预设
+  imports/                 # 放入外部 .fbp 后用 /fb import preset 导入
+  exports/                 # /fb export 输出目录
 ```
 
 ## 已知限制
@@ -128,7 +139,10 @@ export JAVA_HOME="D:/MC/jdk/graalvm-community-openjdk-17.0.9+9.1"
 - 自动城市只影响新生成的区块；已经生成的区块不会补城市。
 - 出生点区块可能在模组世界数据初始化前生成，因此出生点附近不保证有自动城市；向远处探索即可。
 - 海洋单元会跳过；高山会被削平，边缘可能留下山体。
-- 自动城市默认使用 256×256 城市单元，城市频率/规模可在 GUI 调整。
+- 从创建世界界面选择的城市设置只在新存档首次启动时应用，之后由该存档自己的 `config.json` 管理。
+- 创建世界界面的“全地图”指所有符合地形条件、且尚未生成的陆地区块；海洋等无法平整的区域仍会跳过，已经生成的区块不会补城市。
+- `.fbp` 是带 `format` 版本号的文本 JSON，内部封装标准压缩结构 NBT；可跨存档、跨世界复制，也可在其他 FreeBuilding 版本中导入。
+- 跨 Minecraft 版本使用时，只有目标版本仍存在的方块、方块状态和方块实体数据能完整恢复；已删除或改名的方块会由 Minecraft 的结构加载器按目标版本处理，不能保证完全一致。
 - 乡村站点默认使用 128×128 单元；城市单元内不会生成乡村，避免两套建筑重叠。
 - 乡村只检查中心点是否有原版村庄；如果原版村庄偏离中心，仍可能与乡村站点局部重叠。
 - 乡村生成也只影响新区块；已生成区域不会补房屋或村庄。

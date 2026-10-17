@@ -38,9 +38,18 @@ public final class PresetManager {
             return;
         }
         try (Stream<Path> stream = Files.list(directory)) {
-            stream.filter(path -> path.getFileName().toString().endsWith(".nbt"))
+            Map<String, Path> files = new LinkedHashMap<>();
+            stream.filter(path -> path.getFileName().toString().endsWith(".nbt")
+                            || path.getFileName().toString().endsWith(PortablePreset.EXTENSION))
                     .sorted()
-                    .forEach(this::loadFile);
+                    .forEach(path -> {
+                        String fileName = path.getFileName().toString();
+                        String suffix = fileName.endsWith(PortablePreset.EXTENSION)
+                                ? PortablePreset.EXTENSION : ".nbt";
+                        String name = fileName.substring(0, fileName.length() - suffix.length());
+                        files.putIfAbsent(name, path);
+                    });
+            files.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> loadFile(entry.getValue()));
         } catch (IOException exception) {
             FreeBuilding.LOGGER.error("Failed to list building presets in {}", directory, exception);
         }
@@ -54,7 +63,8 @@ public final class PresetManager {
             return;
         }
         try {
-            CompoundTag tag = NbtIo.readCompressed(path.toFile());
+            CompoundTag tag = path.getFileName().toString().endsWith(PortablePreset.EXTENSION)
+                    ? PortablePreset.read(path) : NbtIo.readCompressed(path.toFile());
             StructureTemplate template = new StructureTemplate();
             template.load(blockGetter, tag);
             PreviewData preview = PreviewData.fromNbt(tag, blockGetter, level);
@@ -72,8 +82,23 @@ public final class PresetManager {
         CompoundTag tag = template.save(new CompoundTag());
         Path file = directory.resolve(name + ".nbt");
         NbtIo.writeCompressed(tag, file.toFile());
+        PortablePreset.write(directory.resolve(name + PortablePreset.EXTENSION), name, tag);
         PreviewData preview = PreviewData.fromNbt(tag, blockGetter, level);
         presets.put(name, new Preset(name, template.getSize(), template, preview));
+    }
+
+    public boolean importPortable(String name, Path file, boolean force) throws IOException {
+        if (!NameUtil.isValid(name)) {
+            throw new IOException("Invalid preset name");
+        }
+        if (!force && presets.containsKey(name)) {
+            return false;
+        }
+        CompoundTag tag = PortablePreset.read(file);
+        StructureTemplate template = new StructureTemplate();
+        template.load(blockGetter, tag);
+        save(name, template);
+        return true;
     }
 
     public boolean delete(String name) {
@@ -82,7 +107,9 @@ public final class PresetManager {
         }
         presets.remove(name);
         try {
-            return Files.deleteIfExists(directory.resolve(name + ".nbt"));
+            boolean deleted = Files.deleteIfExists(directory.resolve(name + ".nbt"));
+            deleted |= Files.deleteIfExists(directory.resolve(name + PortablePreset.EXTENSION));
+            return deleted;
         } catch (IOException exception) {
             FreeBuilding.LOGGER.error("Failed to delete preset {}", name, exception);
             return false;

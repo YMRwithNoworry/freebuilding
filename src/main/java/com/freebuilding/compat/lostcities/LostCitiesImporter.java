@@ -15,7 +15,6 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.level.block.Block;
@@ -24,8 +23,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 
 import javax.annotation.Nullable;
-import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -36,6 +36,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.stream.Stream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 /**
  * Converts Lost Cities datapack building definitions into ordinary StructureTemplate presets.
@@ -57,23 +63,28 @@ public final class LostCitiesImporter {
     private LostCitiesImporter() {
     }
 
-    public static List<ImportedPreset> importBuildings(MinecraftServer server, HolderLookup<Block> blockLookup) {
-        ResourceManager resources = server.getResourceManager();
-        Map<ResourceLocation, Resource> found;
+    public static List<ImportedPreset> importBuildings(ResourceManager resources, HolderLookup<Block> blockLookup) {
+        return importBuildings(new ResourceManagerAccess(resources), blockLookup);
+    }
+
+    public static List<ImportedPreset> importBuildings(Path modFile, HolderLookup<Block> blockLookup) {
+        try (ArchiveResourceAccess resources = new ArchiveResourceAccess(modFile)) {
+            return importBuildings(resources, blockLookup);
+        } catch (IOException exception) {
+            FreeBuilding.LOGGER.warn("Failed to read Lost Cities mod resources from {}", modFile, exception);
+            return List.of();
+        }
+    }
+
+    private static List<ImportedPreset> importBuildings(ResourceAccess resources, HolderLookup<Block> blockLookup) {
+        Set<ResourceLocation> found;
         try {
-            found = resources.listResources(DATA + "buildings",
-                    id -> id.getNamespace().equals(NAMESPACE) && id.getPath().endsWith(".json"));
+            found = resources.listResources(DATA + "buildings");
             if (found.isEmpty()) {
-                found = resources.listResources(DATA.substring(0, DATA.length() - 1),
-                        id -> id.getNamespace().equals(NAMESPACE)
-                                && id.getPath().startsWith(DATA + "buildings/")
-                                && id.getPath().endsWith(".json"));
+                found = resources.listResources(DATA.substring(0, DATA.length() - 1));
             }
             if (found.isEmpty()) {
-                found = resources.listResources(DATA.substring(0, DATA.length() - 1),
-                        id -> id.getNamespace().equals(NAMESPACE)
-                                && id.getPath().contains("/buildings/")
-                                && id.getPath().endsWith(".json"));
+                found = resources.listResources("");
             }
         } catch (Exception exception) {
             FreeBuilding.LOGGER.error("Failed to list Lost Cities building resources", exception);
@@ -84,7 +95,7 @@ public final class LostCitiesImporter {
             return List.of();
         }
 
-        List<ResourceLocation> ids = new ArrayList<>(found.keySet());
+        List<ResourceLocation> ids = new ArrayList<>(found);
         ids.sort(Comparator.comparing(ResourceLocation::toString));
         Context context = new Context(resources, blockLookup, new Random(0L),
                 new HashMap<String, BlockState>(), new HashMap<String, JsonObject>());
@@ -487,11 +498,17 @@ public final class LostCitiesImporter {
             return cached;
         }
         ResourceLocation id = new ResourceLocation(NAMESPACE, path);
-        Optional<Resource> resource = context.resources().getResource(id);
+        Optional<Reader> resource;
+        try {
+            resource = context.resources().open(id);
+        } catch (IOException exception) {
+            FreeBuilding.LOGGER.warn("Failed to open Lost Cities resource {}", id, exception);
+            return null;
+        }
         if (resource.isEmpty()) {
             return null;
         }
-        try (BufferedReader reader = resource.get().openAsReader()) {
+        try (Reader reader = resource.get()) {
             JsonElement element = JsonParser.parseReader(reader);
             if (element != null && element.isJsonObject()) {
                 JsonObject json = element.getAsJsonObject();
@@ -535,8 +552,125 @@ public final class LostCitiesImporter {
         return json.has(key) && !json.get(key).isJsonNull() ? json.get(key).getAsInt() : fallback;
     }
 
-    private record Context(ResourceManager resources, HolderLookup<Block> blocks, Random random,
+    private record Context(ResourceAccess resources, HolderLookup<Block> blocks, Random random,
                            Map<String, BlockState> variantCache, Map<String, JsonObject> jsonCache) {
+    }
+
+    private interface ResourceAccess {
+        Set<ResourceLocation> listResources(String prefix);
+
+        Optional<Reader> open(ResourceLocation id) throws IOException;
+    }
+
+    private static final class ResourceManagerAccess implements ResourceAccess {
+        private final ResourceManager resources;
+
+        private ResourceManagerAccess(ResourceManager resources) {
+            this.resources = resources;
+        }
+
+        @Override
+        public Set<ResourceLocation> listResources(String prefix) {
+            return resources.listResources(prefix,
+                            id -> id.getNamespace().equals(NAMESPACE) && id.getPath().endsWith(".json"))
+                    .keySet();
+        }
+
+        @Override
+        public Optional<Reader> open(ResourceLocation id) throws IOException {
+            Optional<Resource> resource = resources.getResource(id);
+            return resource.isEmpty() ? Optional.empty() : Optional.of(resource.get().openAsReader());
+        }
+    }
+
+    private static final class ArchiveResourceAccess implements ResourceAccess, AutoCloseable {
+        @Nullable
+        private final ZipFile zip;
+        @Nullable
+        private final Path directory;
+
+        private ArchiveResourceAccess(Path modFile) throws IOException {
+            if (Files.isDirectory(modFile)) {
+                this.zip = null;
+                this.directory = modFile;
+            } else {
+                this.zip = new ZipFile(modFile.toFile());
+                this.directory = null;
+            }
+        }
+
+        @Override
+        public Set<ResourceLocation> listResources(String prefix) {
+            Set<ResourceLocation> result = new HashSet<>();
+            if (this.directory != null) {
+                Path root = this.directory.resolve("data").resolve(NAMESPACE);
+                if (!Files.isDirectory(root)) {
+                    return result;
+                }
+                try (Stream<Path> paths = Files.walk(root)) {
+                    paths.filter(Files::isRegularFile)
+                            .map(root::relativize)
+                            .map(Path::toString)
+                            .map(path -> path.replace('\\', '/'))
+                            .map(path -> new ResourceLocation(NAMESPACE, path))
+                            .filter(id -> id.getPath().startsWith(prefix) && id.getPath().endsWith(".json"))
+                            .forEach(result::add);
+                } catch (IOException exception) {
+                    FreeBuilding.LOGGER.warn("Failed to list Lost Cities resources in {}", this.directory, exception);
+                }
+                return result;
+            }
+            zip.stream().filter(entry -> !entry.isDirectory())
+                    .map(ZipEntry::getName)
+                    .filter(name -> name.startsWith("data/" + NAMESPACE + "/"))
+                    .map(ArchiveResourceAccess::toResourceLocation)
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .filter(id -> id.getPath().startsWith(prefix) && id.getPath().endsWith(".json"))
+                    .forEach(result::add);
+            return result;
+        }
+
+        @Override
+        public Optional<Reader> open(ResourceLocation id) {
+            if (this.directory != null) {
+                Path file = this.directory.resolve("data").resolve(id.getNamespace()).resolve(id.getPath());
+                if (!Files.isRegularFile(file)) {
+                    return Optional.empty();
+                }
+                try {
+                    return Optional.of(Files.newBufferedReader(file, StandardCharsets.UTF_8));
+                } catch (IOException exception) {
+                    return Optional.empty();
+                }
+            }
+            ZipEntry entry = zip.getEntry("data/" + id.getNamespace() + "/" + id.getPath());
+            if (entry == null) {
+                return Optional.empty();
+            }
+            try {
+                InputStream stream = zip.getInputStream(entry);
+                return Optional.of(new java.io.InputStreamReader(stream, java.nio.charset.StandardCharsets.UTF_8));
+            } catch (IOException exception) {
+                return Optional.empty();
+            }
+        }
+
+        @Nullable
+        private static Optional<ResourceLocation> toResourceLocation(String entryName) {
+            String prefix = "data/" + NAMESPACE + "/";
+            if (!entryName.startsWith(prefix)) {
+                return Optional.empty();
+            }
+            return Optional.of(new ResourceLocation(NAMESPACE, entryName.substring(prefix.length())));
+        }
+
+        @Override
+        public void close() throws IOException {
+            if (this.zip != null) {
+                this.zip.close();
+            }
+        }
     }
 
     private record PartRef(String part, boolean top, boolean ground) {
